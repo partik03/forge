@@ -5,12 +5,14 @@ use url::Url;
 pub enum ProviderUrl {
     OpenAI(String),
     Anthropic(String),
+    VertexAI(String),
 }
 impl ProviderUrl {
     pub fn into_string(self) -> String {
         match self {
             ProviderUrl::OpenAI(url) => url,
             ProviderUrl::Anthropic(url) => url,
+            ProviderUrl::VertexAI(url) => url,
         }
     }
 }
@@ -20,6 +22,7 @@ impl ProviderUrl {
 pub enum Provider {
     OpenAI { url: Url, key: Option<String> },
     Anthropic { url: Url, key: String },
+    VertexAI { url: Url, key: String },
 }
 
 impl Provider {
@@ -27,8 +30,23 @@ impl Provider {
         match url {
             ProviderUrl::OpenAI(url) => self.open_ai_url(url),
             ProviderUrl::Anthropic(url) => self.anthropic_url(url),
+            ProviderUrl::VertexAI(url) => self.vertex_ai_url(url),
         }
     }
+
+    fn vertex_ai_url(&mut self, url: String) {
+        match self {
+            Provider::VertexAI { url: set_url, .. } => {
+                if url.ends_with("/") {
+                    *set_url = Url::parse(&url).unwrap();
+                } else {
+                    *set_url = Url::parse(&format!("{url}/")).unwrap();
+                }
+            }
+            _ => {}
+        }
+    }
+
     /// Sets the OpenAI URL if the provider is an OpenAI compatible provider
     fn open_ai_url(&mut self, url: String) {
         match self {
@@ -106,10 +124,19 @@ impl Provider {
         }
     }
 
+
+    pub fn vertex_ai(key: &str) -> Provider {
+        Provider::VertexAI {
+            url: Url::parse(Provider::VERTEX_AI_URL).unwrap(),
+            key: key.into(), 
+        }    
+    }
+
     pub fn key(&self) -> Option<&str> {
         match self {
             Provider::OpenAI { key, .. } => key.as_deref(),
             Provider::Anthropic { key, .. } => Some(key),
+            Provider::VertexAI { key, .. } => Some(key),
         }
     }
 }
@@ -122,12 +149,21 @@ impl Provider {
     pub const ANTHROPIC_URL: &str = "https://api.anthropic.com/v1/";
     pub const FORGE_URL: &str = "https://api.forgecode.dev/api/v1/";
     pub const COPILOT_URL: &str = "https://api.githubcopilot.com/";
+    pub const VERTEX_AI_URL: &str = "https://us-central1-aiplatform.googleapis.com/v1beta1/projects/default/locations/us-central1/endpoints/openapi/";
 
     /// Converts the provider to it's base URL
     pub fn to_base_url(&self) -> Url {
         match self {
             Provider::OpenAI { url, .. } => url.clone(),
             Provider::Anthropic { url, .. } => url.clone(),
+            Provider::VertexAI { url, .. } => url.clone(),
+        }
+    }
+
+    pub fn is_vertex_ai(&self) -> bool {
+        match self {
+            Provider::VertexAI { .. } => true,
+            _ => false,
         }
     }
 
@@ -295,6 +331,16 @@ mod tests {
         };
         assert_eq!(actual, expected);
     }
+    #[test]
+    fn test_vertex_ai() {
+        let fixture = "test_key";
+        let actual = Provider::vertex_ai(fixture);
+        let expected = Provider::VertexAI {
+            url: Url::from_str("https://us-central1-aiplatform.googleapis.com/v1beta1/projects/default/locations/us-central1/endpoints/openapi/").unwrap(),
+            key: fixture.to_string(),
+        };
+        assert_eq!(actual, expected);
+    }
 
     #[test]
     fn test_is_xai() {
@@ -303,5 +349,14 @@ mod tests {
 
         let fixture_other = Provider::openai("key");
         assert!(!fixture_other.is_xai());
+    }
+    
+    #[test]
+    fn test_is_vertex_ai() {
+        let fixture_vertex_ai = Provider::vertex_ai("key");
+        assert!(fixture_vertex_ai.is_vertex_ai());
+
+        let fixture_other = Provider::openai("key");
+        assert!(!fixture_other.is_vertex_ai());
     }
 }

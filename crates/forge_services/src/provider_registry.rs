@@ -30,6 +30,10 @@ impl<F: EnvironmentInfra> ForgeProviderRegistry<F> {
         if let Some(url) = self.infra.get_env_var("ANTHROPIC_URL") {
             return Some(ProviderUrl::Anthropic(url));
         }
+
+        if let Some(url) = self.infra.get_env_var("VERTEX_API_URL") {
+            return Some(ProviderUrl::VertexAI(url));
+        }
         None
     }
     fn get_provider(&self, forge_config: AppConfig) -> Option<Provider> {
@@ -67,7 +71,7 @@ fn resolve_env_provider<F: EnvironmentInfra>(
     url: Option<ProviderUrl>,
     env: &F,
 ) -> Option<Provider> {
-    let keys: [ProviderSearch; 7] = [
+    let keys: [ProviderSearch; 8] = [
         ("FORGE_KEY", Box::new(Provider::forge)),
         ("OPENROUTER_API_KEY", Box::new(Provider::open_router)),
         ("REQUESTY_API_KEY", Box::new(Provider::requesty)),
@@ -75,6 +79,7 @@ fn resolve_env_provider<F: EnvironmentInfra>(
         ("OPENAI_API_KEY", Box::new(Provider::openai)),
         ("ANTHROPIC_API_KEY", Box::new(Provider::anthropic)),
         ("GITHUB_COPILOT_TOKEN", Box::new(Provider::copilot)),
+        ("VERTEX_API_KEY", Box::new(Provider::vertex_ai)),
     ];
 
     keys.into_iter().find_map(|(key, fun)| {

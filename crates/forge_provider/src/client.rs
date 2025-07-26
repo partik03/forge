@@ -81,6 +81,15 @@ impl ClientBuilder {
                         format!("Failed to initialize Anthropic client with URL: {url}")
                     })?,
             ),
+
+            Provider::VertexAI { url, .. } => InnerClient::OpenAICompat(
+                ForgeProvider::builder()
+                    .client(client)
+                    .provider(provider.clone())
+                    .version(version.clone())
+                    .build()
+                    .with_context(|| format!("Failed to initialize Vertex AI client: {url}"))?,
+            ),
         };
 
         Ok(Client {
